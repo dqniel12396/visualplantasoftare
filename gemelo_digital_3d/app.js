@@ -4949,36 +4949,6 @@ function setupPostprocessing(container) {
   // Render directo con WebGLRenderer (antialias nativo + ACESFilmicToneMapping + sRGBEncoding)
   composer = null;
 }
-  const width = (container && container.clientWidth > 0) ? container.clientWidth : window.innerWidth;
-  const height = (container && container.clientHeight > 0) ? container.clientHeight : Math.max(300, window.innerHeight - 64);
-
-  try {
-    composer = new THREE.EffectComposer(renderer);
-    renderPass = new THREE.RenderPass(scene, camera);
-    composer.addPass(renderPass);
-
-    if (typeof THREE.UnrealBloomPass !== 'undefined') {
-      bloomPass = new THREE.UnrealBloomPass(
-        new THREE.Vector2(width, height),
-        0.32, // strength
-        0.35, // radius
-        0.85  // threshold
-      );
-      composer.addPass(bloomPass);
-    }
-
-    if (typeof THREE.ShaderPass !== 'undefined' && typeof THREE.FXAAShader !== 'undefined') {
-      fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
-      const pixelRatio = renderer.getPixelRatio();
-      fxaaPass.material.uniforms['resolution'].value.x = 1 / (width * pixelRatio);
-      fxaaPass.material.uniforms['resolution'].value.y = 1 / (height * pixelRatio);
-      composer.addPass(fxaaPass);
-    }
-  } catch (e) {
-    console.warn("Postprocessing initialization error, falling back to direct render:", e);
-    composer = null;
-  }
-}
 
 // Setup Three.js Scene, Camera & Lights
 function initThree() {
