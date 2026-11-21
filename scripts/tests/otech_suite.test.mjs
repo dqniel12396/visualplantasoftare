@@ -268,7 +268,8 @@ describe('Offline Readiness, Enlaces Locales y Contratos DOM/JS', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8'));
     assert.equal(manifest.display, 'standalone');
     const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-    assert.ok(sw.includes('otech-airnet-v4'));
+    assert.match(sw, /const CACHE_NAME = 'otech-airnet-v\d+';/);
+    assert.ok(sw.includes('./gemelo_digital_3d/workspace.css'));
   });
 
   it('gemelo_digital_3d/app.js declara instDummy antes de usarlo en montantes P2', () => {

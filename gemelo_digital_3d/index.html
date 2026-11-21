@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="workspace.css?v=7">
   <!-- Three.js and OrbitControls (Vendored Local / Offline-Ready r128) -->
   <script src="../assets/vendor/three/three.min.js"></script>
   <script src="../assets/vendor/three/controls/OrbitControls.js"></script>
@@ -218,6 +219,14 @@
 
         <!-- Plant Simulation Floating Dock (Modo Planta de Producción - 2 Pisos) -->
         <div id="dock-plant-controls" class="viewport-dock-bottom hidden">
+          <div id="tour-panel" class="tour-panel glass-panel hidden">
+            <div class="tour-copy"><strong id="tour-title" aria-live="polite"></strong><p id="tour-description"></p></div>
+            <div class="tour-actions">
+              <button id="tour-prev" class="control-btn" type="button">Anterior</button>
+              <button id="tour-next" class="control-btn" type="button">Siguiente</button>
+              <button id="tour-stop" class="control-btn" type="button">Finalizar tour</button>
+            </div>
+          </div>
           <div class="plant-sim-dock glass-panel">
             <div class="sim-play-group">
               <button id="btn-sim-play" class="btn-sim-toggle active" title="Iniciar / Pausar Simulación de Flujo">
@@ -1236,6 +1245,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

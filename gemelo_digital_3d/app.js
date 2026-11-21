@@ -314,12 +314,14 @@ function initApp() {
   initThree();
   buildStation3D();
   buildPlant3D();
+  prepareModelMaterials(scene);
   createAirflowParticles();
   createRainParticles();
   createDimensionLines();
   setupUIEvents();
   setWeather('sun');
   safeRefreshIcons();
+  setCameraView('isometric');
   animate();
 }
 
@@ -3395,6 +3397,7 @@ function buildPlant3D() {
       group.add(box, foam, unitPreview, hoodPreview, bracket, qrLabel);
     }
 
+    prepareModelMaterials(group);
     return group;
   };
 
@@ -3464,26 +3467,26 @@ function setAppMode(mode) {
     }
     if (dirLight) {
       dirLight.color.set(0xfffaed);
-      dirLight.intensity = 1.65;
+      dirLight.intensity = 1.15;
       dirLight.castShadow = true;
     }
     if (hemiLight) {
       hemiLight.color.set(0xe0f2fe);
       hemiLight.groundColor.set(0x334155);
-      hemiLight.intensity = 0.75;
+      hemiLight.intensity = 0.5;
     }
     if (ambientLight) {
       ambientLight.color.set(0xe0f2fe);
-      ambientLight.intensity = 0.65;
+      ambientLight.intensity = 0.35;
     }
 
     // Configurar cámara para vista de Planta (Nave completa)
     controls.maxDistance = 700;
     controls.minDistance = 20;
     controls.target.set(0, 10, 20);
-    camera.position.set(0, 130, 170);
+    camera.position.set(280, 220, 330);
   } else {
-    if (plantTourActive) togglePlantTour(false);
+    if (plantTourStarted) stopPlantTour();
     document.querySelectorAll('#tabs-product .tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-specs').classList.add('active');
@@ -3507,32 +3510,35 @@ function setAppMode(mode) {
     }
     if (dirLight) {
       dirLight.color.set(0xfffaed);
-      dirLight.intensity = 1.85;
+      dirLight.intensity = 1.3;
       dirLight.castShadow = true;
     }
     if (hemiLight) {
       hemiLight.color.set(0xffffff);
       hemiLight.groundColor.set(0x1e293b);
-      hemiLight.intensity = 0.75;
+      hemiLight.intensity = 0.5;
     }
     if (ambientLight) {
       ambientLight.color.set(0xddeeff);
-      ambientLight.intensity = 0.65;
+      ambientLight.intensity = 0.35;
     }
 
     // Configurar cámara para vista de Producto
-    controls.maxDistance = 500;
+    controls.maxDistance = 900;
     controls.minDistance = 80;
     controls.target.set(0, 40, 0);
-    camera.position.set(180, 140, 260);
+    camera.position.set(300, 249, 412);
   }
 
   hideHotspot();
+  setCameraView('isometric');
+  if (!isPlant) setWeather(state.currentWeather);
   controls.update();
 }
 
 // Control de Niveles y Pisos en Planta 3D (Piso 1, Piso 2, Ambos, Despiece)
 function setPlantFloorView(mode) {
+  if (plantTourStarted && !applyingTourStep) stopPlantTour();
   if (!window.plantFloor1Group || !window.plantFloor2Group) return;
 
   if (window.plantOutdoorGroup) {
@@ -3579,6 +3585,7 @@ function setPlantFloorView(mode) {
 
 // Mostrar inspección de Departamento Administrativo (Organigrama)
 function showAdminDept(deptId) {
+  if (plantTourStarted) stopPlantTour();
   const data = adminDeptData[deptId];
   if (!data) return;
 
@@ -3609,6 +3616,7 @@ function showAdminDept(deptId) {
 
 // Mostrar inspección técnica de estación de planta
 function showPlantStation(stationId) {
+  if (plantTourStarted) stopPlantTour();
   const data = plantStationData[stationId];
   if (!data) return;
 
@@ -3636,48 +3644,6 @@ function showPlantStation(stationId) {
     camera.position.set(stMesh.position.x + 15, 30, stMesh.position.z + 35);
     controls.update();
   }
-}
-
-// Presets de Cámara adaptados a Producto vs Planta
-function setCameraView(view) {
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.view === view);
-  });
-
-  if (state.currentMode === 'plant') {
-    controls.target.set(0, 8, 0);
-    switch (view) {
-      case 'isometric':
-        camera.position.set(0, 110, 140);
-        break;
-      case 'front':
-        camera.position.set(0, 30, 160);
-        break;
-      case 'top':
-        camera.position.set(0, 180, 0.1);
-        break;
-      case 'side':
-        camera.position.set(160, 30, 0);
-        break;
-    }
-  } else {
-    controls.target.set(0, 40, 0);
-    switch (view) {
-      case 'isometric':
-        camera.position.set(180, 140, 260);
-        break;
-      case 'front':
-        camera.position.set(0, 40, 320);
-        break;
-      case 'top':
-        camera.position.set(0, 320, 0.1);
-        break;
-      case 'side':
-        camera.position.set(320, 40, 0);
-        break;
-    }
-  }
-  controls.update();
 }
 
 // Hotspot Inspection Modal Display (Producto)
@@ -3820,9 +3786,9 @@ function setupUIEvents() {
   }
 
   // Floor Selector (Edificio de 2 Pisos)
-  document.querySelectorAll('.floor-btn').forEach(btn => {
+  document.querySelectorAll('.floor-btn[data-floor]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.floor-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       setPlantFloorView(btn.dataset.floor);
     });
@@ -3871,6 +3837,10 @@ function setupUIEvents() {
   // Hotspot Close Button
   document.getElementById('hotspot-close').addEventListener('click', hideHotspot);
 
+  document.getElementById('tour-prev').addEventListener('click', () => goToPlantTourStep(plantTourStep - 1));
+  document.getElementById('tour-next').addEventListener('click', () => goToPlantTourStep(plantTourStep + 1));
+  document.getElementById('tour-stop').addEventListener('click', stopPlantTour);
+  controls.addEventListener('start', () => { if (plantTourStarted) stopPlantTour(); });
   const tourBtn = document.getElementById('btn-plant-tour');
   if (tourBtn) {
     tourBtn.addEventListener('click', () => togglePlantTour());
@@ -4223,6 +4193,7 @@ function setupUIEvents() {
 
 // Activar / Desactivar Modo Recorrido en Primera Persona (Videojuego FPS)
 function toggleFPSMode(enable) {
+  if (plantTourStarted) stopPlantTour();
   state.fpsMode = (enable !== undefined) ? enable : !state.fpsMode;
   const fpsBtn = document.getElementById('btn-toggle-fps');
   const hud = document.getElementById('fps-hud');
@@ -4322,7 +4293,14 @@ function onWindowResize() {
   if (!container || !camera || !renderer) return;
   const width = container.clientWidth > 0 ? container.clientWidth : window.innerWidth;
   const height = container.clientHeight > 0 ? container.clientHeight : Math.max(300, window.innerHeight - 64);
-  camera.aspect = width / height;
+  const nextAspect = width / height;
+  if (controls && !state.fpsMode) {
+    const scale = Math.min(1, camera.aspect) / Math.min(1, nextAspect);
+    const offset = camera.position.clone().sub(controls.target).multiplyScalar(scale);
+    controls.maxDistance = Math.max(controls.maxDistance, offset.length() * 1.1);
+    camera.position.copy(controls.target).add(offset);
+  }
+  camera.aspect = nextAspect;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
   if (composer) {
@@ -4340,7 +4318,8 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(animClock.getDelta(), 0.05);
+  const frameDelta = animClock.getDelta();
+  const delta = Math.min(frameDelta, 0.05);
   const dtFactor = delta * 60; // Normalización precisa a 60 FPS
   const time = Date.now() * 0.002;
 
@@ -4741,9 +4720,9 @@ function animate() {
   }
 
   // Interpolación suave de cámara cuando el Tour Guiado está activo
-  if (typeof plantTourActive !== 'undefined' && plantTourActive && tourTargetPos && tourTargetLook && camera && controls) {
-    camera.position.lerp(tourTargetPos, 0.055);
-    controls.target.lerp(tourTargetLook, 0.065);
+  if (typeof plantTourActive !== 'undefined' && plantTourStarted && !state.fpsMode && tourTargetPos && tourTargetLook && camera && controls) {
+    camera.position.lerp(tourTargetPos, 1 - Math.exp(-3 * Math.min(frameDelta, 0.3)));
+    controls.target.lerp(tourTargetLook, 1 - Math.exp(-3 * Math.min(frameDelta, 0.3)));
     controls.update();
   }
 
@@ -4838,7 +4817,7 @@ function createConcretePBRTexture() {
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#222938';
+  ctx.fillStyle = '#b8b8b8';
   ctx.fillRect(0, 0, 512, 512);
 
   const imgData = ctx.getImageData(0, 0, 512, 512);
@@ -4880,15 +4859,15 @@ function createCorrugatedPBRTexture() {
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#1e293b';
+  ctx.fillStyle = '#b8bec7';
   ctx.fillRect(0, 0, 256, 256);
 
   for (let x = 0; x < 256; x += 16) {
     const grad = ctx.createLinearGradient(x, 0, x + 16, 0);
-    grad.addColorStop(0.0, 'rgba(15, 23, 42, 0.85)');
-    grad.addColorStop(0.3, 'rgba(51, 65, 85, 0.35)');
+    grad.addColorStop(0.0, 'rgba(15, 23, 42, 0.18)');
+    grad.addColorStop(0.3, 'rgba(51, 65, 85, 0.08)');
     grad.addColorStop(0.7, 'rgba(148, 163, 184, 0.20)');
-    grad.addColorStop(1.0, 'rgba(15, 23, 42, 0.85)');
+    grad.addColorStop(1.0, 'rgba(15, 23, 42, 0.18)');
     ctx.fillStyle = grad;
     ctx.fillRect(x, 0, 16, 256);
   }
@@ -4930,27 +4909,66 @@ function generateProceduralEnvironmentMap(rendererInstance) {
     const pmremGenerator = new THREE.PMREMGenerator(rendererInstance);
     pmremGenerator.compileEquirectangularShader();
 
+    // Neutral studio reflections: the outdoor sky was tinting every surface pale blue.
     const envScene = new THREE.Scene();
-    envScene.background = new THREE.Color(0xdbeafe);
-
-    const skyMesh = createSkyDome();
-    skyMesh.scale.setScalar(0.2);
-    envScene.add(skyMesh);
-
-    const sun = new THREE.DirectionalLight(0xfffaed, 3.2);
-    sun.position.set(80, 160, 60);
-    envScene.add(sun);
-
-    const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 1.2);
-    envScene.add(hemi);
+    envScene.background = new THREE.Color(0x171b22).convertSRGBToLinear();
+    const panels = [
+      { position: [0, 90, 0], size: [100, 1, 100], color: 0xcbd0d5 },
+      { position: [-90, 20, 0], size: [1, 100, 70], color: 0x737c87 },
+      { position: [70, 25, 70], size: [60, 100, 1], color: 0x9ba2a8 }
+    ];
+    panels.forEach(panel => {
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(panel.color).convertSRGBToLinear(),
+        side: THREE.DoubleSide
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...panel.size), material);
+      mesh.position.set(...panel.position);
+      envScene.add(mesh);
+    });
 
     const renderTarget = pmremGenerator.fromScene(envScene, 0.04);
     pmremGenerator.dispose();
+    envScene.traverse(object => {
+      if (object.geometry) object.geometry.dispose();
+      if (object.material) object.material.dispose();
+    });
     return renderTarget.texture;
   } catch (err) {
     console.warn("IBL Environment generator error:", err);
     return null;
   }
+}
+
+// r128 expects linear material colors, while our palette and canvas images are sRGB.
+// Convert shared materials only once and keep sky reflections below the base color.
+const preparedModelMaterials = new WeakSet();
+function prepareModelMaterials(root) {
+  root.traverse(object => {
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach(material => {
+      if (!material || preparedModelMaterials.has(material)) return;
+      preparedModelMaterials.add(material);
+      if (material.color) material.color.convertSRGBToLinear();
+      if (material.emissive) material.emissive.convertSRGBToLinear();
+      if (material.specular) material.specular.convertSRGBToLinear();
+      if (material.map) {
+        material.map.encoding = THREE.sRGBEncoding;
+        material.map.needsUpdate = true;
+        // These textures already contain the full surface color.
+        if ([texAsphalt, texGrass].includes(material.map)) {
+          material.color.set(0xffffff);
+        }
+      }
+      if ('envMapIntensity' in material) material.envMapIntensity = 0.18;
+      if (material.isMeshPhysicalMaterial) {
+        material.clearcoat = Math.min(material.clearcoat, 0.25);
+        material.clearcoatRoughness = Math.max(material.clearcoatRoughness, 0.3);
+      }
+      if (material.isMeshBasicMaterial) material.toneMapped = false;
+      material.needsUpdate = true;
+    });
+  });
 }
 
 function setupPostprocessing(container) {
@@ -4976,7 +4994,7 @@ function initThree() {
 
   // Camera
   camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 2500);
-  camera.position.set(180, 140, 260);
+  camera.position.set(300, 249, 412);
 
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -4986,7 +5004,7 @@ function initThree() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.35;
+  renderer.toneMappingExposure = 0.95;
   container.appendChild(renderer.domElement);
 
   // Controls
@@ -4995,7 +5013,7 @@ function initThree() {
   controls.dampingFactor = 0.05;
   controls.maxPolarAngle = Math.PI / 2 + 0.05;
   controls.minDistance = 80;
-  controls.maxDistance = 500;
+  controls.maxDistance = 900;
   controls.target.set(0, 40, 0);
 
   // Lighting
@@ -5016,6 +5034,8 @@ function initThree() {
 
   // Resize Listener
   window.addEventListener('resize', onWindowResize);
+  // Track the actual canvas area when controls wrap or inspection panels open.
+  new ResizeObserver(onWindowResize).observe(container);
   renderer.domElement.addEventListener('click', onCanvasClick);
 }
 
@@ -5444,7 +5464,7 @@ function setupLights() {
   scene.add(dirLight);
 
   // Studio Rim Light (Luz de Contorno Cian / Perfilado de Aristas de Producto)
-  const rimLight = new THREE.DirectionalLight(0x14b8a6, 2.0);
+  const rimLight = new THREE.DirectionalLight(0xd5eeeb, 0.65);
   rimLight.position.set(-160, 170, -140);
   scene.add(rimLight);
   window.rimLight = rimLight;
@@ -5471,30 +5491,27 @@ function buildStation3D() {
   // ----------------------------------------------------
   materialsMap.asaPlastic = new THREE.MeshPhysicalMaterial({
     color: 0xf1f5f9,
-    roughness: 0.28,
+    roughness: 0.65,
     metalness: 0.04,
-    clearcoat: 0.35,
+    clearcoat: 0.05,
     clearcoatRoughness: 0.2,
     reflectivity: 0.6
   });
 
   materialsMap.darkAsa = new THREE.MeshPhysicalMaterial({
     color: 0x111827,
-    roughness: 0.35,
-    metalness: 0.12,
-    clearcoat: 0.2,
+    roughness: 0.7,
+    metalness: 0.0,
+    clearcoat: 0.0,
     clearcoatRoughness: 0.3
   });
 
   const solarTexture = createSolarCellTexture();
-  materialsMap.solarGlass = new THREE.MeshPhysicalMaterial({
-    color: 0x1e3a8a,
+  materialsMap.solarGlass = new THREE.MeshPhongMaterial({
+    color: 0xffffff,
     map: solarTexture,
-    roughness: 0.04,
-    metalness: 0.85,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.05,
-    reflectivity: 0.95
+    specular: 0x142b46,
+    shininess: 24
   });
 
   materialsMap.stainlessSteel = new THREE.MeshStandardMaterial({
@@ -6312,10 +6329,10 @@ function setWeather(mode) {
       scene.fog.density = isPlant ? 0.00028 : 0.00035;
     }
     dirLight.color.set(0xfffaed);
-    dirLight.intensity = isPlant ? 1.65 : 1.85;
+    dirLight.intensity = isPlant ? 1.15 : 1.3;
     ambientLight.color.set(0xeef6ff);
-    ambientLight.intensity = isPlant ? 0.65 : 0.85;
-    if (hemiLight) hemiLight.intensity = 0.75;
+    ambientLight.intensity = 0.35;
+    if (hemiLight) hemiLight.intensity = 0.5;
     if (rainParticles) rainParticles.visible = false;
     if (materialsMap.ledRing) materialsMap.ledRing.color.set(0x0ea5e9);
     if (ledRingLight) { ledRingLight.color.set(0x0ea5e9); ledRingLight.intensity = 1.6; }
@@ -6345,7 +6362,7 @@ function setWeather(mode) {
     dirLight.color.set(0xf59e0b);
     dirLight.intensity = 1.05;
     ambientLight.color.set(0x78350f);
-    ambientLight.intensity = 0.65;
+    ambientLight.intensity = 0.35;
     if (rainParticles) rainParticles.visible = false;
     if (materialsMap.ledRing) materialsMap.ledRing.color.set(0xef4444);
     if (ledRingLight) { ledRingLight.color.set(0xef4444); ledRingLight.intensity = 3.2; }
@@ -6354,29 +6371,24 @@ function setWeather(mode) {
   emitirTelemetria3D(true);
 }
 
-// Camera View Presets
+// Camera presets preserve a readable overview in both model modes.
 function setCameraView(view) {
+  if (plantTourStarted) stopPlantTour();
   document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
-
-  const target = new THREE.Vector3(0, 40, 0);
+  const isPlant = state.currentMode === 'plant';
+  const target = new THREE.Vector3(0, isPlant ? 10 : 40, 0);
+  const distance = (isPlant ? 650 : 550) / Math.min(1, camera.aspect);
+  const directions = {
+    isometric: new THREE.Vector3(0.55, 0.38, 0.75),
+    front: new THREE.Vector3(0, 0, 1),
+    top: new THREE.Vector3(0, 1, 0.001),
+    side: new THREE.Vector3(1, 0, 0)
+  };
+  controls.maxDistance = Math.max(isPlant ? 1200 : 900, distance * 1.5);
   controls.target.copy(target);
-
-  switch (view) {
-    case 'isometric':
-      camera.position.set(180, 140, 260);
-      break;
-    case 'front':
-      camera.position.set(0, 40, 320);
-      break;
-    case 'top':
-      camera.position.set(0, 320, 0.1);
-      break;
-    case 'side':
-      camera.position.set(320, 40, 0);
-      break;
-  }
+  camera.position.copy(target).add((directions[view] || directions.isometric).normalize().multiplyScalar(distance));
   controls.update();
 }
 
@@ -6412,64 +6424,120 @@ function hideHotspot() {
 var plantTourActive = false;
 var plantTourTimer = null;
 var plantTourStep = 0;
+var plantTourStarted = false;
+var plantTourCompleted = false;
+var applyingTourStep = false;
+var tourSavedView = null;
 var tourTargetPos = null;
 var tourTargetLook = null;
 
-function togglePlantTour(forceState) {
-  const nextState = typeof forceState === 'boolean' ? forceState : !plantTourActive;
-  if (nextState && state.currentMode !== 'plant') {
-    setAppMode('plant');
-  }
-  plantTourActive = nextState;
-
-  const btn = document.getElementById('btn-plant-tour');
-  const txt = document.getElementById('plant-tour-text');
-  if (btn) btn.classList.toggle('active', plantTourActive);
-  if (txt) txt.textContent = plantTourActive ? 'Pausar Tour' : 'Tour Guiado';
-
-  if (plantTourTimer) {
-    clearInterval(plantTourTimer);
-    plantTourTimer = null;
-  }
-  if (!plantTourActive || typeof camera === 'undefined' || typeof controls === 'undefined') {
-    tourTargetPos = null;
-    tourTargetLook = null;
-    if (state.currentMode === 'plant') {
-      const hdr = document.getElementById('header-status-text');
-      if (hdr) hdr.innerText = 'Complejo Industrial y Corporativo OTech';
-    }
-    return;
-  }
-
-  // Asegurar ambos pisos visibles y techo abierto durante el tour
-  if (window.plantRoofGroup) window.plantRoofGroup.visible = false;
-  state.showPlantRoof = false;
-  const roofTxt = document.getElementById('roof-btn-text');
-  if (roofTxt) roofTxt.textContent = 'Ver Techo';
-
-  const waypoints = [
-    { label: '1/5 Fachada Corporativa & Acceso', pos: [0, 48, 165], target: [0, 12, 10] },
-    { label: '2/5 Piso 1: Línea de Ensamble ESD', pos: [-75, 42, 70], target: [-15, 6, 0] },
-    { label: '3/5 Piso 2: Oficinas R&D, NOC & κ-Köhler', pos: [60, 58, 65], target: [10, 18, -5] },
-    { label: '4/5 Planta de Tratamiento (PTAR)', pos: [-125, 45, -80], target: [-75, 10, -45] },
-    { label: '5/5 Zona Logística & Despacho', pos: [125, 48, -60], target: [65, 8, -10] }
+function getPlantTourStops() {
+  return [
+    { label: 'Campus y acceso principal', floor: 'all', target: [0, 15, 35], offset: [290, 230, 360], desc: 'Vista general del edificio, acceso y parqueaderos.' },
+    ...Object.keys(plantStationData).filter(id => /^st[1-7]$/.test(id)).map(id => ({
+      label: plantStationData[id].title, floor: 'p1', object: plantStationsMap[id],
+      offset: [30, 58, 62], desc: plantStationData[id].desc
+    })),
+    ...Object.keys(window.adminDeptsMap || {}).map(id => ({
+      label: adminDeptData[id]?.title || window.adminDeptsMap[id].userData.name || id,
+      floor: 'p2', object: window.adminDeptsMap[id], offset: [18, 85, 55],
+      desc: adminDeptData[id]?.desc || 'Infraestructura de servidores y comunicaciones de la plataforma.'
+    })),
+    { label: 'Planta de tratamiento de aguas residuales', floor: 'all', target: [140, 10, -20], offset: [75, 95, 100], desc: 'Tanques, bombeo y tratamiento de aguas del campus.' },
+    { label: 'Logística y despacho', floor: 'p1', target: [0, 6, 122], offset: [110, 115, 150], desc: 'Zona de carga, recepción de materiales y salida de producto terminado.' },
+    { label: 'Cubierta y energía solar', floor: 'all', roof: true, target: [0, 55, 0], offset: [210, 210, 270], desc: 'Cubierta industrial, lucernarios y sistema fotovoltaico.' }
   ];
+}
 
-  const moverA = wp => {
-    tourTargetPos = new THREE.Vector3(wp.pos[0], wp.pos[1], wp.pos[2]);
-    tourTargetLook = new THREE.Vector3(wp.target[0], wp.target[1], wp.target[2]);
-    const hdr = document.getElementById('header-status-text');
-    if (hdr) hdr.innerText = `Tour 3D: ${wp.label}`;
-    const hudText = document.getElementById('hud-live-telemetry-text');
-    if (hudText) hudText.textContent = `Tour 3D: ${wp.label}`;
-  };
+function updatePlantTourUI(completed = false) {
+  document.getElementById('btn-plant-tour')?.classList.toggle('active', plantTourActive);
+  const text = document.getElementById('plant-tour-text');
+  if (text) text.textContent = completed ? 'Repetir tour' : plantTourActive ? 'Pausar tour' : plantTourStarted ? 'Continuar tour' : 'Tour guiado';
+  document.getElementById('tour-panel')?.classList.toggle('hidden', !plantTourStarted);
+}
 
-  moverA(waypoints[plantTourStep % waypoints.length]);
-  plantTourTimer = setInterval(() => {
-    if (!plantTourActive) return;
-    plantTourStep = (plantTourStep + 1) % waypoints.length;
-    moverA(waypoints[plantTourStep]);
-  }, 4500);
+function stopPlantTour() {
+  clearTimeout(plantTourTimer);
+  plantTourTimer = null;
+  plantTourActive = false;
+  plantTourStarted = false;
+  plantTourCompleted = false;
+  tourTargetPos = tourTargetLook = null;
+  if (tourSavedView) {
+    const saved = tourSavedView;
+    tourSavedView = null;
+    state.showPlantRoof = saved.roof;
+    setPlantFloorView(saved.floor);
+    toggleP2Facade(saved.facade);
+    document.querySelectorAll('[data-floor]').forEach(button => button.classList.toggle('active', button.dataset.floor === saved.floor));
+    document.getElementById('btn-toggle-roof').classList.toggle('active', saved.roof);
+    document.getElementById('roof-btn-text').textContent = saved.roof ? 'Ocultar techo' : 'Ver Techo';
+  }
+  updatePlantTourUI();
+  const status = document.getElementById('header-status-text');
+  if (status) status.textContent = 'Complejo Industrial y Corporativo OTech';
+}
+
+function goToPlantTourStep(index) {
+  plantTourCompleted = false;
+  const stops = getPlantTourStops();
+  plantTourStep = Math.max(0, Math.min(index, stops.length - 1));
+  const stop = stops[plantTourStep];
+  clearTimeout(plantTourTimer);
+  applyingTourStep = true;
+  state.showPlantRoof = !!stop.roof;
+  const previousTarget = controls.target.clone();
+  setPlantFloorView(stop.floor);
+  controls.target.copy(previousTarget);
+  toggleP2Facade(false);
+  applyingTourStep = false;
+  document.querySelectorAll('[data-floor]').forEach(button => button.classList.toggle('active', button.dataset.floor === stop.floor));
+  document.getElementById('btn-toggle-roof').classList.toggle('active', !!stop.roof);
+  document.getElementById('roof-btn-text').textContent = stop.roof ? 'Ocultar techo' : 'Ver Techo';
+  scene.updateMatrixWorld(true);
+  tourTargetLook = stop.object ? stop.object.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 6, 0)) : new THREE.Vector3(...stop.target);
+  const offset = new THREE.Vector3(...stop.offset).multiplyScalar(1 / Math.min(1, camera.aspect));
+  tourTargetPos = tourTargetLook.clone().add(offset);
+  controls.maxDistance = Math.max(controls.maxDistance, offset.length() * 1.2);
+  const title = `${plantTourStep + 1}/${stops.length} · ${stop.label}`;
+  document.getElementById('tour-title').textContent = title;
+  document.getElementById('tour-description').textContent = stop.desc;
+  document.getElementById('header-status-text').textContent = `Tour: ${title}`;
+  document.getElementById('tour-prev').disabled = plantTourStep === 0;
+  document.getElementById('tour-next').disabled = plantTourStep === stops.length - 1;
+  updatePlantTourUI();
+  if (plantTourActive) {
+    plantTourTimer = setTimeout(() => {
+      if (plantTourStep < stops.length - 1) goToPlantTourStep(plantTourStep + 1);
+      else {
+        plantTourActive = false;
+        plantTourCompleted = true;
+        document.getElementById('tour-title').textContent = 'Recorrido completado · ' + stop.label;
+        updatePlantTourUI(true);
+      }
+    }, 8000);
+  }
+}
+
+function togglePlantTour(forceState) {
+  if (forceState === false) { stopPlantTour(); return; }
+  if (state.fpsMode) toggleFPSMode(false);
+  if (state.currentMode !== 'plant') setAppMode('plant');
+  hideHotspot();
+  if (!plantTourStarted) {
+    tourSavedView = {
+      floor: document.querySelector('[data-floor].active')?.dataset.floor || 'all',
+      roof: state.showPlantRoof, facade: state.showP2Facade !== false
+    };
+    plantTourStarted = true;
+    plantTourStep = 0;
+  } else if (plantTourCompleted) {
+    plantTourStep = 0;
+  }
+  plantTourActive = !plantTourActive;
+  clearTimeout(plantTourTimer);
+  if (plantTourActive) goToPlantTourStep(plantTourStep);
+  updatePlantTourUI();
 }
 
 function ejecutarComandoWeb3D(cmd) {

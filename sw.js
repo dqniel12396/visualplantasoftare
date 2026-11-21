@@ -1,4 +1,4 @@
-const CACHE_NAME = 'otech-airnet-v4';
+const CACHE_NAME = 'otech-airnet-v7';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const PRECACHE_URLS = [
   './plataforma_web/bogota-base.svg',
   './gemelo_digital_3d/index.html',
   './gemelo_digital_3d/styles.css',
+  './gemelo_digital_3d/workspace.css',
   './gemelo_digital_3d/app.js',
   './assets/vendor/tailwindcss.js',
   './assets/vendor/chart.umd.min.js',

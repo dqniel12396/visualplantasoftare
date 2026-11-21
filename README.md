@@ -23,18 +23,23 @@
 
 ---
 
-## 🌐 Cómo Activar y Visualizar en GitHub Pages
+## 🌐 Publicación en un único GitHub Pages
 
-Este repositorio está preparado para **GitHub Pages** sin configuraciones complejas:
+La dirección principal es https://dqniel12396.github.io/visualplantasoftare/.
+El portal y el visor son secciones del mismo sitio:
 
-1. Ve a la pestaña **Settings** (Configuración) de tu repositorio en GitHub:  
-   `https://github.com/dqniel12396/visualplantasoftare/settings/pages`
-2. En la sección **Build and deployment**:
-   - **Source:** Selecciona `Deploy from a branch`.
-   - **Branch:** Selecciona `main` y carpeta `/ (root)`.
-3. Haz clic en **Save** (Guardar).
-4. En 1-2 minutos tu aplicación estará publicada en vivo en:  
-   `https://dqniel12396.github.io/visualplantasoftare/`
+- Portal: https://dqniel12396.github.io/visualplantasoftare/plataforma_web/portal.html
+- Visor 3D: https://dqniel12396.github.io/visualplantasoftare/gemelo_digital_3d/index.html
+
+El workflow `.github/workflows/pages.yml` publica la rama `main` con GitHub Actions.
+En Settings > Pages, la fuente debe ser **GitHub Actions**. Cada push a `main`
+actualiza este mismo sitio; no hace falta crear otro GitHub Pages.
+Los recursos de la aplicación usan rutas relativas para conservar el prefijo del repositorio.
+
+El tour del visor visita 18 secciones con avance automático cada 8 segundos.
+Permite pausar, continuar, retroceder, avanzar y finalizar. Al finalizar manualmente,
+restaura el piso, techo y fachada anteriores; cambiar de piso o tomar la cámara
+interrumpe el recorrido para permitir la navegación manual.
 
 ---
 
