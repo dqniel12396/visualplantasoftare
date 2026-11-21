@@ -4989,7 +4989,7 @@ function initThree() {
   // Scene
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0e17);
-  scene.fog = new THREE.FogExp2(0x0a0e17, 0.003);
+  scene.fog = new THREE.FogExp2(0x0a0e17, 0.00045);
 
   // Procedural Sky Dome
   plantSkyDome = createSkyDome();
