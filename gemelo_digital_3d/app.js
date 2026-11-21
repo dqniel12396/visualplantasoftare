@@ -4773,7 +4773,7 @@ function createSkyDome() {
     offset: { value: 30 },
     exponent: { value: 0.6 }
   };
-  const skyGeo = new THREE.SphereGeometry(750, 32, 24);
+  const skyGeo = new THREE.SphereGeometry(1600, 32, 24);
   const skyMat = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
@@ -4946,9 +4946,9 @@ function generateProceduralEnvironmentMap(rendererInstance) {
 }
 
 function setupPostprocessing(container) {
-  if (!window.THREE || typeof THREE.EffectComposer === 'undefined') {
-    return;
-  }
+  // Render directo con WebGLRenderer (antialias nativo + ACESFilmicToneMapping + sRGBEncoding)
+  composer = null;
+}
   const width = (container && container.clientWidth > 0) ? container.clientWidth : window.innerWidth;
   const height = (container && container.clientHeight > 0) ? container.clientHeight : Math.max(300, window.innerHeight - 64);
 
@@ -4997,7 +4997,7 @@ function initThree() {
   scene.add(plantSkyDome);
 
   // Camera
-  camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 2500);
   camera.position.set(180, 140, 260);
 
   // Renderer
@@ -5006,8 +5006,9 @@ function initThree() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.45;
+  renderer.toneMappingExposure = 1.35;
   container.appendChild(renderer.domElement);
 
   // Controls
