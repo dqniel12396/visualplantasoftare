@@ -3453,28 +3453,28 @@ function setAppMode(mode) {
     if (window.plantOutdoorGroup) window.plantOutdoorGroup.visible = true;
     if (window.plantRoofGroup) window.plantRoofGroup.visible = state.showPlantRoof;
 
-    // Configuración de Cielo Diurno Natural e Iluminación de Campus Industrial (Atmósfera Arquitectónica PBR)
+    // Configuración de Cielo Diurno Natural e Iluminación de Campus Industrial
     if (plantSkyDome) plantSkyDome.visible = true;
     if (scene) {
-      scene.background.set(0xcfd8dc); // Haze arquitectónico en el horizonte
+      scene.background.set(0x7dd3fc);
       if (scene.fog) {
-        scene.fog.color.set(0xcfd8dc);
-        scene.fog.density = 0.0012; // Haze atmosférico sutil a lo largo del campus de 400m
+        scene.fog.color.set(0xbfe8ff);
+        scene.fog.density = 0.00028;
       }
     }
     if (dirLight) {
       dirLight.color.set(0xfffaed);
-      dirLight.intensity = 1.35;
-      dirLight.castShadow = true; // Sombras suaves optimizadas sin raster lines
+      dirLight.intensity = 1.65;
+      dirLight.castShadow = true;
     }
     if (hemiLight) {
       hemiLight.color.set(0xe0f2fe);
-      hemiLight.groundColor.set(0x1e293b);
-      hemiLight.intensity = 0.65;
+      hemiLight.groundColor.set(0x334155);
+      hemiLight.intensity = 0.75;
     }
     if (ambientLight) {
       ambientLight.color.set(0xe0f2fe);
-      ambientLight.intensity = 0.50;
+      ambientLight.intensity = 0.65;
     }
 
     // Configurar cámara para vista de Planta (Nave completa)
@@ -3483,6 +3483,7 @@ function setAppMode(mode) {
     controls.target.set(0, 10, 20);
     camera.position.set(0, 130, 170);
   } else {
+    if (plantTourActive) togglePlantTour(false);
     document.querySelectorAll('#tabs-product .tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-specs').classList.add('active');
@@ -3501,18 +3502,18 @@ function setAppMode(mode) {
       scene.background.set(0x0a0e17);
       if (scene.fog) {
         scene.fog.color.set(0x0a0e17);
-        scene.fog.density = 0.003;
+        scene.fog.density = 0.00035;
       }
     }
     if (dirLight) {
       dirLight.color.set(0xfffaed);
-      dirLight.intensity = 1.45;
+      dirLight.intensity = 1.85;
       dirLight.castShadow = true;
     }
     if (hemiLight) {
       hemiLight.color.set(0xffffff);
       hemiLight.groundColor.set(0x1e293b);
-      hemiLight.intensity = 0.55;
+      hemiLight.intensity = 0.75;
     }
     if (ambientLight) {
       ambientLight.color.set(0xddeeff);
@@ -4739,6 +4740,13 @@ function animate() {
     }
   }
 
+  // Interpolación suave de cámara cuando el Tour Guiado está activo
+  if (typeof plantTourActive !== 'undefined' && plantTourActive && tourTargetPos && tourTargetLook && camera && controls) {
+    camera.position.lerp(tourTargetPos, 0.055);
+    controls.target.lerp(tourTargetLook, 0.065);
+    controls.update();
+  }
+
   if (composer) {
     composer.render();
   } else {
@@ -4768,10 +4776,10 @@ function createSkyDome() {
     }
   `;
   const uniforms = {
-    topColor: { value: new THREE.Color(0x1d4ed8) },
-    bottomColor: { value: new THREE.Color(0xcfd8dc) },
-    offset: { value: 30 },
-    exponent: { value: 0.6 }
+    topColor: { value: new THREE.Color(0x0284c7) },
+    bottomColor: { value: new THREE.Color(0xbae6fd) },
+    offset: { value: 60 },
+    exponent: { value: 0.7 }
   };
   const skyGeo = new THREE.SphereGeometry(1600, 32, 24);
   const skyMat = new THREE.ShaderMaterial({
@@ -6296,13 +6304,18 @@ function setWeather(mode) {
   });
 
   if (mode === 'sun') {
-    scene.background.set(0x0a0e17);
-    if (scene.fog) scene.fog.color.set(0x0a0e17);
+    const isPlant = state.currentMode === 'plant';
+    if (plantSkyDome) plantSkyDome.visible = isPlant;
+    scene.background.set(isPlant ? 0x7dd3fc : 0x0a0e17);
+    if (scene.fog) {
+      scene.fog.color.set(isPlant ? 0xbfe8ff : 0x0a0e17);
+      scene.fog.density = isPlant ? 0.00028 : 0.00035;
+    }
     dirLight.color.set(0xfffaed);
-    dirLight.intensity = 2.2;
+    dirLight.intensity = isPlant ? 1.65 : 1.85;
     ambientLight.color.set(0xeef6ff);
-    ambientLight.intensity = 1.25;
-    if (hemiLight) hemiLight.intensity = 1.0;
+    ambientLight.intensity = isPlant ? 0.65 : 0.85;
+    if (hemiLight) hemiLight.intensity = 0.75;
     if (rainParticles) rainParticles.visible = false;
     if (materialsMap.ledRing) materialsMap.ledRing.color.set(0x0ea5e9);
     if (ledRingLight) { ledRingLight.color.set(0x0ea5e9); ledRingLight.intensity = 1.6; }
@@ -6399,9 +6412,16 @@ function hideHotspot() {
 var plantTourActive = false;
 var plantTourTimer = null;
 var plantTourStep = 0;
+var tourTargetPos = null;
+var tourTargetLook = null;
 
 function togglePlantTour(forceState) {
-  plantTourActive = typeof forceState === 'boolean' ? forceState : !plantTourActive;
+  const nextState = typeof forceState === 'boolean' ? forceState : !plantTourActive;
+  if (nextState && state.currentMode !== 'plant') {
+    setAppMode('plant');
+  }
+  plantTourActive = nextState;
+
   const btn = document.getElementById('btn-plant-tour');
   const txt = document.getElementById('plant-tour-text');
   if (btn) btn.classList.toggle('active', plantTourActive);
@@ -6411,20 +6431,35 @@ function togglePlantTour(forceState) {
     clearInterval(plantTourTimer);
     plantTourTimer = null;
   }
-  if (!plantTourActive || typeof camera === 'undefined' || typeof controls === 'undefined') return;
+  if (!plantTourActive || typeof camera === 'undefined' || typeof controls === 'undefined') {
+    tourTargetPos = null;
+    tourTargetLook = null;
+    if (state.currentMode === 'plant') {
+      const hdr = document.getElementById('header-status-text');
+      if (hdr) hdr.innerText = 'Complejo Industrial y Corporativo OTech';
+    }
+    return;
+  }
+
+  // Asegurar ambos pisos visibles y techo abierto durante el tour
+  if (window.plantRoofGroup) window.plantRoofGroup.visible = false;
+  state.showPlantRoof = false;
+  const roofTxt = document.getElementById('roof-btn-text');
+  if (roofTxt) roofTxt.textContent = 'Ver Techo';
 
   const waypoints = [
-    { label: '1/5 Fachada & Acceso Principal', pos: [0, 28, 120], target: [0, 8, 0] },
-    { label: '2/5 Piso 1: Línea de Ensamble IoT', pos: [-55, 22, 48], target: [-15, 6, 0] },
-    { label: '3/5 Piso 2: R&D y Calibración κ-Köhler', pos: [45, 36, 45], target: [10, 18, -5] },
-    { label: '4/5 Planta de Tratamiento (PTAR)', pos: [-95, 24, -55], target: [-60, 8, -35] },
-    { label: '5/5 Zona Logística & Despacho', pos: [90, 28, -45], target: [45, 6, -15] }
+    { label: '1/5 Fachada Corporativa & Acceso', pos: [0, 48, 165], target: [0, 12, 10] },
+    { label: '2/5 Piso 1: Línea de Ensamble ESD', pos: [-75, 42, 70], target: [-15, 6, 0] },
+    { label: '3/5 Piso 2: Oficinas R&D, NOC & κ-Köhler', pos: [60, 58, 65], target: [10, 18, -5] },
+    { label: '4/5 Planta de Tratamiento (PTAR)', pos: [-125, 45, -80], target: [-75, 10, -45] },
+    { label: '5/5 Zona Logística & Despacho', pos: [125, 48, -60], target: [65, 8, -10] }
   ];
 
   const moverA = wp => {
-    camera.position.set(wp.pos[0], wp.pos[1], wp.pos[2]);
-    controls.target.set(wp.target[0], wp.target[1], wp.target[2]);
-    controls.update();
+    tourTargetPos = new THREE.Vector3(wp.pos[0], wp.pos[1], wp.pos[2]);
+    tourTargetLook = new THREE.Vector3(wp.target[0], wp.target[1], wp.target[2]);
+    const hdr = document.getElementById('header-status-text');
+    if (hdr) hdr.innerText = `Tour 3D: ${wp.label}`;
     const hudText = document.getElementById('hud-live-telemetry-text');
     if (hudText) hudText.textContent = `Tour 3D: ${wp.label}`;
   };
